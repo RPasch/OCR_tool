@@ -11,8 +11,6 @@ from azure.ai.documentintelligence.models import DocumentAnalysisFeature
 from PIL import Image
 import numpy as np
 import io
-import cv2
-from pdf2image import convert_from_bytes
 from crewai_processor import process_with_crewai
 from config import PAGE_TITLE, PAGE_ICON, SHOW_SAMPLE_WORDS
 
@@ -33,45 +31,6 @@ def format_bounding_box(bounding_box):
         return "N/A"
     reshaped_bounding_box = np.array(bounding_box).reshape(-1, 2)
     return ", ".join(["[{}, {}]".format(x, y) for x, y in reshaped_bounding_box])
-
-def decode_qr_codes(file_content, file_extension):
-    """Decode QR codes from the file using OpenCV"""
-    decoded_barcodes = []
-    try:
-        detector = cv2.QRCodeDetector()
-        
-        if file_extension.lower() == '.pdf':
-            # Convert PDF to images
-            images = convert_from_bytes(file_content)
-            for img in images:
-                # Convert PIL image to OpenCV format
-                img_cv = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-                retval, decoded_info, points, straight_qr = detector.detectAndDecodeMulti(img_cv)
-                if retval and decoded_info:
-                    for data in decoded_info:
-                        if data:
-                            decoded_barcodes.append({
-                                "type": "QR_CODE",
-                                "data": data,
-                                "quality": "high"
-                            })
-        else:
-            # Handle image files
-            img_pil = Image.open(io.BytesIO(file_content))
-            img_cv = cv2.cvtColor(np.array(img_pil), cv2.COLOR_RGB2BGR)
-            retval, decoded_info, points, straight_qr = detector.detectAndDecodeMulti(img_cv)
-            if retval and decoded_info:
-                for data in decoded_info:
-                    if data:
-                        decoded_barcodes.append({
-                            "type": "QR_CODE",
-                            "data": data,
-                            "quality": "high"
-                        })
-    except Exception as e:
-        print(f"Error decoding QR codes: {str(e)}")
-    
-    return decoded_barcodes
 
 def process_document(file_content, file_extension):
     """Process the uploaded document using Azure Document Intelligence"""
@@ -150,12 +109,6 @@ def process_document(file_content, file_extension):
                     "bounding_box": format_bounding_box(barcode.polygon) if hasattr(barcode, 'polygon') else None,
                     "source": "azure"
                 })
-        
-        # Decode QR codes and barcodes using pyzbar
-        decoded_barcodes = decode_qr_codes(file_content, file_extension)
-        for decoded in decoded_barcodes:
-            decoded["source"] = "pyzbar"
-            barcodes_info.append(decoded)
         
         # Extract key-value pairs
         key_value_pairs = []
@@ -298,18 +251,6 @@ def main():
                             if result["styles"]:
                                 has_handwriting = any(s["is_handwritten"] for s in result["styles"])
                                 st.info(f"Document contains {'handwritten' if has_handwriting else 'no handwritten'} content")
-                            
-                            # Display QR code links in a dedicated box
-                            qr_links = [b for b in result.get("barcodes", []) if b.get('type') == 'QR_CODE' and b.get('data')]
-                            if qr_links:
-                                st.subheader("🔗 QR Code Links Extracted")
-                                for i, qr in enumerate(qr_links, 1):
-                                    with st.container(border=True):
-                                        st.write(f"**QR Code #{i}**")
-                                        st.code(qr['data'], language="text")
-                                        # If it looks like a URL, make it clickable
-                                        if qr['data'].startswith(('http://', 'https://')):
-                                            st.markdown(f"[🔗 Open Link]({qr['data']})", unsafe_allow_html=False)
                             
                             # Display key-value pairs
                             if result.get("key_value_pairs"):
