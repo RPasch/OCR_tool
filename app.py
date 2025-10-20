@@ -211,6 +211,19 @@ def main():
                 image = Image.open(uploaded_file)
                 st.image(image, caption="Uploaded Image", use_container_width=True)
         
+        # Display PDF preview (first page)
+        elif file_extension == '.pdf':
+            col1, col2 = st.columns([1, 1])
+            with col1:
+                try:
+                    from pdf2image import convert_from_bytes
+                    uploaded_file.seek(0)
+                    pdf_images = convert_from_bytes(uploaded_file.read(), first_page=1, last_page=1)
+                    if pdf_images:
+                        st.image(pdf_images[0], caption="PDF Preview (Page 1)", use_container_width=True)
+                except Exception as e:
+                    st.warning(f"Could not generate PDF preview: {str(e)}")
+        
         # Process the document when the user clicks the button
         if st.button("Process Document"):
             with st.spinner("Processing document..."):
