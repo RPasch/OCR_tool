@@ -187,7 +187,7 @@ def main():
     with col1:
         st.write("### Upload and Process Documents")
     with col2:
-        enable_crewai = st.checkbox("🤖 Enable CrewAI Analysis", value=False)
+        enable_crewai = st.checkbox("🤖 Enable CrewAI Analysis", value=True)
     
     st.divider()
     
@@ -206,8 +206,10 @@ def main():
         if file_extension in ['.png', '.jpg', '.jpeg']:
             col1, col2 = st.columns([1, 1])
             with col1:
+                # Reset file pointer to beginning to ensure image loads correctly
+                uploaded_file.seek(0)
                 image = Image.open(uploaded_file)
-                st.image(image, caption="Uploaded Image", use_column_width=True)
+                st.image(image, caption="Uploaded Image", use_container_width=True)
         
         # Process the document when the user clicks the button
         if st.button("Process Document"):
